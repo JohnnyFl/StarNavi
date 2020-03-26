@@ -1,26 +1,22 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import Game from "./components/Game";
+import Board from "./components/Board";
+import styled from "styled-components";
+
+const WrapperApp = styled.div`
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	border: 10px solid lightgray;
+	height: 100%;
+`;
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+	return (
+		<WrapperApp>
+			<Game />
+			<Board />
+		</WrapperApp>
+	);
 }
 
 export default App;
