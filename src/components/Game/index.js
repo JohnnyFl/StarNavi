@@ -1,5 +1,6 @@
-import React, { useState, useEffect, memo, useLayoutEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import styled from "styled-components";
+import getRandomInt from "../../utils/randomInt";
 
 const GameWrapper = styled.div`
 	padding-top: 20vh;
@@ -71,17 +72,17 @@ const Field = styled.div`
 	cursor: pointer;
 `;
 
-const Game = () => {
-	const [settings, setSettings] = useState([]);
+const Game = ({ getWinner }) => {
 	const [gameMode, setGameMode] = useState({ field: 5, delay: 2000 });
-	const [name, setName] = useState("Josh");
+	const [name, setName] = useState("User");
 	const [userPoints, setUserPoints] = useState(0);
 	const [computerPoints, setComputerPoints] = useState(0);
 	const [compTurn, setCompTurn] = useState(true);
 	const [availableFields, setAvailableFields] = useState([]);
 	const [selectedNumber, setSelectedNumber] = useState(null);
 	const [startTime, setStartTime] = useState(0);
-	const [gameEnds, setGameEnds] = useState(false);
+
+	const [settings, setSettings] = useState([]);
 
 	useEffect(() => {
 		const getSettings = async () => {
@@ -104,10 +105,32 @@ const Game = () => {
 		getSettings();
 	}, []);
 
+	const [gameEnds, setGameEnds] = useState(false);
+
 	useEffect(() => {
-		console.log("SN", selectedNumber);
-		setAvailableFields(prevFields => [...prevFields, selectedNumber]);
-	}, [selectedNumber]);
+		setUserPoints(0);
+		setComputerPoints(0);
+		setAvailableFields([]);
+		setSelectedNumber(null);
+	}, [gameEnds]);
+
+	useEffect(() => {
+		if (gameEnds) {
+			fetch("https://starnavi-frontend-test-task.herokuapp.com/winners", {
+				method: "POST",
+				body: JSON.stringify({
+					winner: name,
+					date: new Date().toLocaleString()
+				}),
+				headers: {
+					"Content-Type": "application/json"
+				}
+			})
+				.then(data => data.json())
+				.then(res => getWinner(res[res.length - 1]))
+				.catch(e => console.log(e));
+		}
+	}, [gameEnds, name, getWinner]);
 
 	const handleSelect = e => {
 		const { value } = e.target;
@@ -117,25 +140,20 @@ const Game = () => {
 		setGameMode(Object.values(selectedMode[0])[0]);
 	};
 
-	const getRandomInt = max => {
-		let min = 1;
-		max = Math.floor(max);
-		return Math.floor(Math.random() * (max - min + 1)) + min;
-	};
 	const computerTurn = () => {
-		let number = getRandomInt(gameMode.field * gameMode.field);
+		let fields = gameMode.field * gameMode.field;
+		let number = getRandomInt(fields);
 		let element = document.getElementById(number);
-		// setAvailableFields(prevFields => [...prevFields, number]);
-		// if (availableFields.length > (gameMode.field * gameMode.field) / 2) {
-		// 	setGameEnds(true);
-		// 	if (userPoints > computerPoints) {
-		// 		return;
-		// 	} else {
-		// 		setName("Computer");
-		// 	}
-		// 	alert("aaaaaa");
-		// 	return;
-		// }
+		if (availableFields.length > fields / 2) {
+			setGameEnds(true);
+			if (userPoints > computerPoints) {
+				setName(name.length > 0 && name !== "Computer" ? name : "User");
+				return;
+			} else {
+				setName("Computer");
+				return;
+			}
+		}
 		setSelectedNumber(number);
 		if (!availableFields.includes(number)) {
 			setAvailableFields(prevFields => [...prevFields, number]);
@@ -153,19 +171,17 @@ const Game = () => {
 		let field = e.target;
 		let userTime = new Date().getTime();
 		let timeDifference = userTime - startTime;
-		console.log("adsfasdf", Number(field.id));
-		setSelectedNumber(() => Number(field.id));
+
 		if (!compTurn) {
 			if (
 				Number(field.id) === selectedNumber &&
 				timeDifference < gameMode.delay
 			) {
 				setUserPoints(prevPoints => (prevPoints += 1));
+				setSelectedNumber(Number(field.id));
 				field.style.background = "green";
 			} else {
 				setAvailableFields(prevFields => [...prevFields, Number(field.id)]);
-
-				console.log("user turn", availableFields);
 				setComputerPoints(prevPoints => (prevPoints += 1));
 				field.style.background = "red";
 			}
@@ -180,15 +196,24 @@ const Game = () => {
 	const renderFields = () => {
 		let fields = [];
 		for (let i = 1; i <= gameMode.field * gameMode.field; i++) {
-			fields.push(<Field id={i} onClick={handleClick} key={i}></Field>);
-			// fields.push(<Field id={i} key={i}></Field>);
+			fields.push(
+				<Field id={i} className='field' onClick={handleClick} key={i} />
+			);
 		}
 		return fields;
 	};
 
 	const handlePlayClick = () => {
-		if (compTurn) computerTurn();
-		else return;
+		if (gameEnds) {
+			setGameEnds(false);
+			let styledFields = document.getElementsByClassName("field");
+			for (let item of styledFields) {
+				item.removeAttribute("style");
+			}
+			computerTurn();
+		} else if (compTurn) {
+			computerTurn();
+		} else return;
 	};
 
 	return (
@@ -210,8 +235,9 @@ const Game = () => {
 					placeholder='Enter your name'
 					onChange={e => setName(e.target.value)}
 				/>
-				<Button onClick={handlePlayClick}>Play</Button>
-				{/* <Button>Play</Button> */}
+				<Button onClick={handlePlayClick}>
+					{!gameEnds ? "Play" : "Play Again"}
+				</Button>
 			</ButtonWrapper>
 			<CongratText gameEnds={gameEnds}>{name} Won !</CongratText>
 			<Fields number={gameMode.field}>{renderFields()}</Fields>

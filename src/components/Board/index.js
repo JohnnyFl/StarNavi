@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import styled from "styled-components";
 import BoardItem from "../BoardItem";
 
@@ -18,7 +18,7 @@ const ItemWrapper = styled.div`
 	width: 70%;
 `;
 
-const Board = () => {
+const Board = props => {
 	const [users, setUsers] = useState([]);
 
 	useEffect(() => {
@@ -27,6 +27,12 @@ const Board = () => {
 			.then(res => setUsers(res))
 			.catch(e => console.log(e));
 	}, []);
+
+	useEffect(() => {
+		if (typeof props.winner === "object") {
+			setUsers(prev => [...prev, props.winner]);
+		}
+	}, [props.winner]);
 
 	return (
 		<BoardWrapper>
@@ -44,4 +50,4 @@ const Board = () => {
 	);
 };
 
-export default Board;
+export default memo(Board);
