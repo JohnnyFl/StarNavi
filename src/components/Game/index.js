@@ -1,6 +1,5 @@
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, memo, useLayoutEffect } from "react";
 import styled from "styled-components";
-import getRandomInt from "../../utils/utils";
 
 const GameWrapper = styled.div`
 	padding-top: 20vh;
@@ -74,6 +73,15 @@ const Field = styled.div`
 
 const Game = () => {
 	const [settings, setSettings] = useState([]);
+	const [gameMode, setGameMode] = useState({ field: 5, delay: 2000 });
+	const [name, setName] = useState("Josh");
+	const [userPoints, setUserPoints] = useState(0);
+	const [computerPoints, setComputerPoints] = useState(0);
+	const [compTurn, setCompTurn] = useState(true);
+	const [availableFields, setAvailableFields] = useState([]);
+	const [selectedNumber, setSelectedNumber] = useState(null);
+	const [startTime, setStartTime] = useState(0);
+	const [gameEnds, setGameEnds] = useState(false);
 
 	useEffect(() => {
 		const getSettings = async () => {
@@ -96,19 +104,10 @@ const Game = () => {
 		getSettings();
 	}, []);
 
-	// useEffect(() => {
-	// 	setColoredFields(prev => [...prev, num]);
-	// }, [num]);
-
-	const [gameMode, setGameMode] = useState({ field: 5, delay: 2000 });
-	const [name, setName] = useState("User");
-	const [gameEnds, setGameEnds] = useState(false);
-	const [coloredFields, setColoredFields] = useState([]);
-	const [isUserMove, setIsUserMove] = useState(false);
-	const [num, setNum] = useState(null);
-	const [userPoints, setUserPoints] = useState(0);
-	const [computerPoints, setComputerPoints] = useState(0);
-	const [startTime, setStartTime] = useState();
+	useEffect(() => {
+		console.log("SN", selectedNumber);
+		setAvailableFields(prevFields => [...prevFields, selectedNumber]);
+	}, [selectedNumber]);
 
 	const handleSelect = e => {
 		const { value } = e.target;
@@ -118,28 +117,61 @@ const Game = () => {
 		setGameMode(Object.values(selectedMode[0])[0]);
 	};
 
-	const userMove = e => {
+	const getRandomInt = max => {
+		let min = 1;
+		max = Math.floor(max);
+		return Math.floor(Math.random() * (max - min + 1)) + min;
+	};
+	const computerTurn = () => {
+		let number = getRandomInt(gameMode.field * gameMode.field);
+		let element = document.getElementById(number);
+		// setAvailableFields(prevFields => [...prevFields, number]);
+		// if (availableFields.length > (gameMode.field * gameMode.field) / 2) {
+		// 	setGameEnds(true);
+		// 	if (userPoints > computerPoints) {
+		// 		return;
+		// 	} else {
+		// 		setName("Computer");
+		// 	}
+		// 	alert("aaaaaa");
+		// 	return;
+		// }
+		setSelectedNumber(number);
+		if (!availableFields.includes(number)) {
+			setAvailableFields(prevFields => [...prevFields, number]);
+			setTimeout(() => {
+				setCompTurn(false);
+				element.style.backgroundColor = "blue";
+				setStartTime(new Date().getTime());
+			}, gameMode.delay);
+		} else {
+			computerTurn();
+		}
+	};
+
+	const handleClick = e => {
 		let field = e.target;
-		let computerField = coloredFields[coloredFields.length - 1];
-		let finishTime = new Date().getTime();
-		let timeDifference = finishTime - startTime;
-		setColoredFields([...coloredFields, Number(field.id)]);
-		if (isUserMove) {
+		let userTime = new Date().getTime();
+		let timeDifference = userTime - startTime;
+		console.log("adsfasdf", Number(field.id));
+		setSelectedNumber(() => Number(field.id));
+		if (!compTurn) {
 			if (
-				computerField === Number(field.id) &&
+				Number(field.id) === selectedNumber &&
 				timeDifference < gameMode.delay
 			) {
-				field.style.backgroundColor = "green";
-				setUserPoints(prev => prev + 1);
+				setUserPoints(prevPoints => (prevPoints += 1));
+				field.style.background = "green";
 			} else {
-				field.style.backgroundColor = "red";
-				setComputerPoints(prev => prev + 1);
+				setAvailableFields(prevFields => [...prevFields, Number(field.id)]);
+
+				console.log("user turn", availableFields);
+				setComputerPoints(prevPoints => (prevPoints += 1));
+				field.style.background = "red";
 			}
 
-			// setNum(Number(field.id));
-
-			setIsUserMove(false);
-			computerMove();
+			computerTurn();
+			setCompTurn(true);
 		} else {
 			return;
 		}
@@ -148,40 +180,15 @@ const Game = () => {
 	const renderFields = () => {
 		let fields = [];
 		for (let i = 1; i <= gameMode.field * gameMode.field; i++) {
-			fields.push(<Field onClick={userMove} id={i} key={i}></Field>);
+			fields.push(<Field id={i} onClick={handleClick} key={i}></Field>);
+			// fields.push(<Field id={i} key={i}></Field>);
 		}
 		return fields;
 	};
 
-	const computerMove = () => {
-		let fields = gameMode.field * gameMode.field;
-		let randomID = getRandomInt(fields);
-		let square = document.getElementById(randomID);
-		if (coloredFields.length > fields / 2) {
-			setGameEnds(true);
-			if (userPoints > computerPoints) return;
-			else setName("Computer");
-			return;
-		}
-		if (!coloredFields.includes(randomID)) {
-			setColoredFields([...coloredFields, randomID]);
-			// setNum(randomID);
-			setTimeout(() => {
-				square.style.backgroundColor = "blue";
-				setIsUserMove(true);
-				setStartTime(new Date().getTime());
-			}, gameMode.delay);
-		} else {
-			computerMove();
-		}
-	};
-
-	const handlePlayButton = () => {
-		if (!gameEnds) {
-			computerMove();
-		} else {
-			console.log("sfgdf");
-		}
+	const handlePlayClick = () => {
+		if (compTurn) computerTurn();
+		else return;
 	};
 
 	return (
@@ -203,10 +210,8 @@ const Game = () => {
 					placeholder='Enter your name'
 					onChange={e => setName(e.target.value)}
 				/>
-
-				<Button onClick={handlePlayButton}>
-					{!gameEnds ? "Play" : "Play Again"}
-				</Button>
+				<Button onClick={handlePlayClick}>Play</Button>
+				{/* <Button>Play</Button> */}
 			</ButtonWrapper>
 			<CongratText gameEnds={gameEnds}>{name} Won !</CongratText>
 			<Fields number={gameMode.field}>{renderFields()}</Fields>
