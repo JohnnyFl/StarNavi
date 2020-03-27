@@ -6,7 +6,6 @@ import styled from "styled-components";
 const WrapperApp = styled.div`
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	border: 10px solid lightgray;
 	height: 100%;
 `;
 
